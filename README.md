@@ -1,33 +1,18 @@
-# dnsteal v 2.0
+# DNSteal (Python 3 Modernized)
 
-This is a fake DNS server that allows you to stealthily extract files from a victim machine through DNS requests. 
+> ⚠️ **Note:** This is an updated fork of the original [m57/dnsteal](https://github.com/m57/dnsteal).
+> It has been ported to **Python 3** and patches several bugs found in modern environments.
 
-Below are a couple of different images showing examples of multiple file transfer and single verbose file transfer:
+### Why I made this
+I use this tool for a cybersecurity course. The original code was written in Python 2. Since that version is End-of-Life, I ported it to Python 3 to make it easier to use on modern systems.
 
-![Alt text](http://i.imgur.com/nJsoAMv.png)
+I used standard migration tools like [2to3](https://docs.python.org/3.12/library/2to3.html) and [autopep8](https://pypi.org/project/autopep8/) as a base. Then, I manually fixed the network logic to handle bytes and strings correctly.
 
-* Support for multiple files
-* Gzip compression supported
-* Now supports the customisation of subdomains and bytes per subdomain and the length of filename
+###  Key Changes in this Version:
+* **Python 3 Port:** Full migration from Python 2 (syntax, print functions, exception handling).
+* **Network Stability:** Fixed critical `TypeError` bugs by strictly handling bytes/strings for socket transmission.
+* **Modern `dig` Compatibility:** Added the `+noidnin` flag to generated commands. This fixes the "illegal IDNA2008 name" error on modern Linux distributions when payloads end with a hyphen (`-.`).
+* **Bug Fixes:** Fixed MD5 checksum crash by enforcing binary mode (`rb`) for file reading.
+* **Cleanup:** Refactored code to comply with PEP8 standards and removed unused imports.
 
-See help below:
-
-![Alt text](http://i.imgur.com/GT5SV2L.png)
-
-If you do not understand the help, then just use the program with default options!
-
-```bash
-python dnsteal.py 127.0.0.1 -z -v
-```
-
-This one would send 45 bytes per subdomain, of which there are 4 in the query. 15 bytes reserved for filename at the end.
-
-```bash
-python dnsteal.py 127.0.0.1 -z -v -b 45 -s 4 -f 15
-```
-
-This one would leave no space for filename.
-
-```bash
-python dnsteal.py 127.0.0.1 -z -v -b 63 -s 4 -f 0
-```
+---
