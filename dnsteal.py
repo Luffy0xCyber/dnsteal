@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import socket
 import sys
@@ -64,7 +64,9 @@ def save_to_file(r_data, z, v):
     for key, value in r_data.items():
 
         file_seed = time.strftime("%Y-%m-%d_%H-%M-%S")
-        fname = "recieved_%s_%s" % (file_seed, key)
+        # sanitize filename ! 
+        safe_key = key.replace('/', '_').replace('\\', '_')
+        fname = "recieved_%s_%s" % (file_seed, safe_key)
         flatdata = ""
 
         for block in value:
